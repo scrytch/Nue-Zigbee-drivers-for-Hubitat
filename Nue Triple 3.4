@@ -11,10 +11,11 @@
  *
  *  Based on on original by Lazcad / RaveTam
  *  Mods for Hui 3 Gang Switch by Netsheriff
+ *  Mods for Preferences to change Endpoint without driver edit by scrytch
  */
 
 metadata {
-    definition (name: "HUI ZigBee Wall Switch 3 Gang V.3.4", namespace: "George Castanza", author: "George Castanza") {
+    definition (name: "NUE ZigBee Wall Switch 3 Gang V.3.5", namespace: "Hubitat", author: "George Castanza") {
         capability "Actuator"
         capability "Configuration"
         capability "Refresh"
@@ -56,6 +57,13 @@ metadata {
  
 }
 
+preferences {
+    input("epid1", "text", title: "NUE Endpoint ID Switch 1", description: "[Endpoint ID of your NUE Zigbee Switch Button 1]", required: true)
+    input("epid2", "text", title: "NUE Endpoint ID Switch 2", description: "[Endpoint ID of your NUE Zigbee Switch Button 2]", required: true)
+    input("epid3", "text", title: "NUE Endpoint ID Switch 3", description: "[Endpoint ID of your NUE Zigbee Switch Button 3]", required: true)
+    input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true	
+}
+
 // Parse incoming device messages to generate events
 
 def parse(String description) {
@@ -74,9 +82,9 @@ def parse(String description) {
     else if (description?.startsWith('on/off:')){
    // log.debug "onoff"
     
-   def refreshCmds = zigbee.readAttribute(0x0006, 0x0000, [destEndpoint: 0x10]) +
-    				  zigbee.readAttribute(0x0006, 0x0000, [destEndpoint: 0x11]) +
-            		  zigbee.readAttribute(0x0006, 0x0000, [destEndpoint: 0x12])              
+   def refreshCmds = zigbee.readAttribute(0x0006, 0x0000, [destEndpoint: "0x${epid1}"]) +
+    				  zigbee.readAttribute(0x0006, 0x0000, [destEndpoint: "0x${epid2}"]) +
+            		  zigbee.readAttribute(0x0006, 0x0000, [destEndpoint: "0x${epid3}"])              
     
    return refreshCmds.collect { new hubitat.device.HubAction(it) }     
     	//def resultMap = zigbee.getKnownDescription(description)
@@ -101,7 +109,7 @@ private Map parseCatchAllMessage(String description) {
 //	log.debug cluster
     
     if (cluster.clusterId == 0x0006 && cluster.command == 0x01){
-    	if (cluster.sourceEndpoint == 0x10)
+    	if (cluster.sourceEndpoint == "0x${epid1}")
         {
         log.debug "Its Switch one"
     	def onoff = cluster.data[-1]
@@ -110,7 +118,7 @@ private Map parseCatchAllMessage(String description) {
         else if (onoff == 0)
             resultMap = createEvent(name: "switch", value: "off")
             }
-      if (cluster.sourceEndpoint == 0x11)
+      if (cluster.sourceEndpoint == "0x${epid2}")
             {
             log.debug "Its Switch two"
     	def onoff = cluster.data[-1]
@@ -119,7 +127,7 @@ private Map parseCatchAllMessage(String description) {
         else if (onoff == 0)
             resultMap = createEvent(name: "switch2", value: "off")
             }
-	 else if (cluster.sourceEndpoint == 0x12)
+	 else if (cluster.sourceEndpoint == "0x${epid3}")
             {
             log.debug "Its Switch three"
     	def onoff = cluster.data[-1]
@@ -143,25 +151,25 @@ private Map parseReportAttributeMessage(String description) {
  
 	Map resultMap = [:]
 
-	if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="00" && descMap.endpoint == "10") {
+	if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="00" && descMap.endpoint == "${epid1}") {
     	resultMap = createEvent(name: "switch1", value: "off")
     } 
         
-    if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="01" && descMap.endpoint == "10") {
+    if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="01" && descMap.endpoint == "${epid1}") {
     	resultMap = createEvent(name: "switch1", value: "on")
     }
-    if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="00" && descMap.endpoint == "11") {
+    if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="00" && descMap.endpoint == "${epid2}") {
     	resultMap = createEvent(name: "switch2", value: "off")
     } 
         
-    if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="01" && descMap.endpoint == "11") {
+    if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="01" && descMap.endpoint == "${epid2}") {
     	resultMap = createEvent(name: "switch2", value: "on")
     }
-    if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="00" && descMap.endpoint == "12") {
+    if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="00" && descMap.endpoint == "${epid3}") {
     	resultMap = createEvent(name: "switch3", value: "off")
     } 
         
-    else if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="01" && descMap.endpoint == "12") {
+    else if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="01" && descMap.endpoint == "${epid3}") {
     	resultMap = createEvent(name: "switch3", value: "on")
     }
     
@@ -172,36 +180,36 @@ private Map parseReportAttributeMessage(String description) {
 def off1() {
     log.info "off()"
 	sendEvent(name: "switch1", value: "off")
-   	"he cmd 0x${device.deviceNetworkId} 0x10 0x0006 0x0 {}" 
+   	"he cmd 0x${device.deviceNetworkId} 0x${epid1} 0x0006 0x0 {}" 
   }
 
 def on1() {
    log.info "on()"
 	sendEvent(name: "switch1", value: "on")
-    "he cmd 0x${device.deviceNetworkId} 0x10 0x0006 0x1 {}" 
+    "he cmd 0x${device.deviceNetworkId} 0x${epid1} 0x0006 0x1 {}" 
     }
 def off2() {
     log.info "off2()"
 	sendEvent(name: "switch2", value: "off")
-    "he cmd 0x${device.deviceNetworkId} 0x11 0x0006 0x0 {}" 
+    "he cmd 0x${device.deviceNetworkId} 0x${epid2} 0x0006 0x0 {}" 
    }
 
 def on2() {
    log.info "on2()"
 	sendEvent(name: "switch2", value: "on")
-    "he cmd 0x${device.deviceNetworkId} 0x11 0x0006 0x1 {}" 
+    "he cmd 0x${device.deviceNetworkId} 0x${epid2} 0x0006 0x1 {}" 
     }
     
 def off3() {
     log.info "off3()"
 	sendEvent(name: "switch3", value: "off")
-    "he cmd 0x${device.deviceNetworkId} 0x12 0x0006 0x0 {}" 
+    "he cmd 0x${device.deviceNetworkId} 0x${epid3} 0x0006 0x0 {}" 
    }
 
 def on3() {
    log.info "on3()"
 	sendEvent(name: "switch3", value: "on")
-    "he cmd 0x${device.deviceNetworkId} 0x12 0x0006 0x1 {}" 
+    "he cmd 0x${device.deviceNetworkId} 0x${epid3} 0x0006 0x1 {}" 
     }
     
 def off0() {
@@ -234,9 +242,9 @@ def on() {
 def refresh() {
 	log.debug "refreshing"
     [
-        "he rattr 0x${device.deviceNetworkId} 0x10 0x0006 0x0", "delay 1000",
-        "he rattr 0x${device.deviceNetworkId} 0x11 0x0006 0x0", "delay 1000",
-    	"he rattr 0x${device.deviceNetworkId} 0x12 0x0006 0x0", "delay 1000",
+        "he rattr 0x${device.deviceNetworkId} 0x${epid1} 0x0006 0x0", "delay 1000",
+        "he rattr 0x${device.deviceNetworkId} 0x${epid2} 0x0006 0x0", "delay 1000",
+    	"he rattr 0x${device.deviceNetworkId} 0x${epid3} 0x0006 0x0", "delay 1000",
        
     ]
 }
