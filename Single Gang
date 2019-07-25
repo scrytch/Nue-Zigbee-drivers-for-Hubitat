@@ -11,10 +11,11 @@
  *
  *  Based on on original by Lazcad / RaveTam
  *  Mods for Hui 3 Gang Switch by Netsheriff
+ *  Mods for Preferences to change Endpoint without driver edit by scrytch
  */
 
 metadata {
-    definition (name: "HUI ZigBee Wall Switch Single Gang 1.1", namespace: "Hubitat", author: "George Castanza") {
+    definition (name: "NUE ZigBee Wall Switch Single Gang 1.2", namespace: "Hubitat", author: "George Castanza") {
         capability "Actuator"
         capability "Configuration"
         capability "Refresh"
@@ -44,6 +45,11 @@ metadata {
     }
 
 }
+
+preferences {
+    input("epid", "text", title: "NUE Endpoint ID", description: "[Endpoint ID of your NUE Zigbee Switch]", required: true)
+    input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+}
        
 // Parse incoming device messages to generate events
 
@@ -62,7 +68,7 @@ def parse(String description) {
 	}
     else if (description?.startsWith('on/off: ')){
     log.debug "onoff"
-    def refreshCmds = zigbee.readAttribute(0x0006, 0x0000, [destEndpoint: 0x10])          
+    def refreshCmds = zigbee.readAttribute(0x0006, 0x0000, [destEndpoint: "0x${epid}"])          
     
    return refreshCmds.collect { new hubitat.device.HubAction(it) }     
     	//def resultMap = zigbee.getKnownDescription(description)
@@ -87,7 +93,7 @@ private Map parseCatchAllMessage(String description) {
 	log.debug cluster
     
     if (cluster.clusterId == 0x0006 && cluster.command == 0x01){
-    	if (cluster.sourceEndpoint == 0x10)
+    	if (cluster.sourceEndpoint == "0x${epid}")
         {
         log.debug "Its Switch one"
     	def onoff = cluster.data[-1]
@@ -108,11 +114,11 @@ private Map parseCatchAllMessage(String description) {
  
 	Map resultMap = [:]
 
-	if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="00" && descMap.endpoint == "10") {
+	if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="00" && descMap.endpoint == "${epid}") {
     	resultMap = createEvent(name: "switch", value: "off")
     } 
         
-    else if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="01" && descMap.endpoint == "10") {
+    else if (descMap.cluster == "0006" && descMap.attrId == "0000" && descMap.value =="01" && descMap.endpoint == "${epid}") {
     	resultMap = createEvent(name: "switch", value: "on")
     }
     
@@ -122,13 +128,13 @@ private Map parseCatchAllMessage(String description) {
 def off() {
     log.debug "off()"
 	sendEvent(name: "switch", value: "off")
-   	"st cmd 0x${device.deviceNetworkId} 0x10 0x0006 0x0 {}" 
+   	"st cmd 0x${device.deviceNetworkId} 0x${epid} 0x0006 0x0 {}" 
   }
 
 def on() {
    log.debug "on()"
 	sendEvent(name: "switch", value: "on")
-    "st cmd 0x${device.deviceNetworkId} 0x10 0x0006 0x1 {}" 
+    "st cmd 0x${device.deviceNetworkId} 0x${epid} 0x0006 0x1 {}" 
     }
 
     
@@ -136,7 +142,7 @@ def on() {
 def refresh() {
 	log.debug "refreshing"
     [
-        "st rattr 0x${device.deviceNetworkId} 0x10 0x0006 0x0", "delay 1000",
+        "st rattr 0x${device.deviceNetworkId} 0x${epid} 0x0006 0x0", "delay 1000",
      
     ]
 }
