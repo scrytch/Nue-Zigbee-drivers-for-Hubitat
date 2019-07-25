@@ -5,3 +5,5 @@ Pair device to HE by following the instructions provided.
 Assign the newly created device to the appropriate code.
 You may need to check that the endpoints for the double/triples have not changed. The newer units have different endpoints, and this needs to be changed in the drivers. 
 Then use Virtual Device Sync from Erocm123 to map the 2/3 switches to human usable names, to use with Google Home etc. This is not required for the single light switch. 
+
+Updated: Nue Zigbee Single, Double and Triple Gang Wall Switch Drivers Modified to allow Endpoint to be set by preference setting
